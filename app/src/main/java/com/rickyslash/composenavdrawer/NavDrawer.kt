@@ -1,6 +1,9 @@
 package com.rickyslash.composenavdrawer
 
+import android.app.Activity
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,13 +13,13 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -44,7 +47,8 @@ fun NavDrawer() {
             })
         },
         drawerContent = {
-            MyDrawerContent (onItemSelected = { title ->
+            MyDrawerContent (
+                onItemSelected = { title ->
                     scope.launch {
                         scaffoldState.drawerState.close()
                         val snackbarResult = scaffoldState.snackbarHostState.showSnackbar(
@@ -55,7 +59,15 @@ fun NavDrawer() {
                             Toast.makeText(context, context.resources.getString(R.string.subscribed_info), Toast.LENGTH_SHORT).show()
                         }
                     }
-                })
+                },
+                onBackPress = {
+                    if (scaffoldState.drawerState.isOpen) {
+                        scope.launch { scaffoldState.drawerState.close() }
+                    } else {
+                        (context as Activity).finish()
+                    }
+                }
+            )
         },
         drawerGesturesEnabled = scaffoldState.drawerState.isOpen
     ) { paddingValues ->
@@ -71,7 +83,8 @@ fun NavDrawer() {
 @Composable
 fun MyDrawerContent(
     modifier: Modifier = Modifier,
-    onItemSelected: (title: String) -> Unit
+    onItemSelected: (title: String) -> Unit,
+    onBackPress: () -> Unit
 ) {
     val items = listOf(
         MenuItem(stringResource(R.string.home), Icons.Default.Home),
@@ -97,6 +110,38 @@ fun MyDrawerContent(
             }
         }
         Divider()
+    }
+    BackPressHandler {
+        onBackPress()
+    }
+}
+
+// this whole code could be replaced by a simpler `BackHandler{}`
+@Composable
+fun BackPressHandler(enabled: Boolean = true, onBackPressed: () -> Unit) {
+    val currentOnBackPressed by rememberUpdatedState(onBackPressed)
+    val backCallback = remember {
+        object : OnBackPressedCallback(enabled) {
+            override fun handleOnBackPressed() {
+                currentOnBackPressed()
+            }
+        }
+    }
+
+    // set `OnBackPressedCallback` `.isEnabled` to determine whether the back button handling is enabled/disabled
+    SideEffect { backCallback.isEnabled = enabled }
+
+    // ensure the backDispatcher is not null
+    val backDispatcher = checkNotNull(LocalOnBackPressedDispatcherOwner.current) {
+        "No OnBackPressedDispatcherOwner was provided via LocalOnBackPressedDispatcherOwner"
+    }.onBackPressedDispatcher
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    // add or remove backCallback from backDispatcher
+    DisposableEffect(lifecycleOwner, backDispatcher) {
+        backDispatcher.addCallback(lifecycleOwner, backCallback) // ensure `backCallback` to handle back button press events when occur
+        onDispose { backCallback.remove() } // remove backCallback from backDispatcher after the effect disposed
     }
 }
 
