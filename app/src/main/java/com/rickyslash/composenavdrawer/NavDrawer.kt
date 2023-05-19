@@ -16,7 +16,6 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
@@ -34,39 +33,17 @@ data class MenuItem(
 @Composable
 fun NavDrawer() {
     val scaffoldState = rememberScaffoldState() // built-in Scaffold state to manage contained element (drawerState & snackbarHostState)
-    val scope = rememberCoroutineScope() // call Coroutine inside Composable when onClick
-    val context = LocalContext.current
+    val appState = rememberNavDrawerState()
 
     Scaffold(
-        scaffoldState = scaffoldState,
+        scaffoldState = appState.scaffoldState,
         topBar = {
-            MyTopBar(onMenuClick = {
-                scope.launch {
-                    scaffoldState.drawerState.open()
-                }
-            })
+            MyTopBar(onMenuClick = appState::onMenuClick)
         },
         drawerContent = {
             MyDrawerContent (
-                onItemSelected = { title ->
-                    scope.launch {
-                        scaffoldState.drawerState.close()
-                        val snackbarResult = scaffoldState.snackbarHostState.showSnackbar(
-                            message = context.resources.getString(R.string.coming_soon, title),
-                            actionLabel = context.resources.getString(R.string.subscribe_question)
-                        )
-                        if (snackbarResult == SnackbarResult.ActionPerformed) {
-                            Toast.makeText(context, context.resources.getString(R.string.subscribed_info), Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                },
-                onBackPress = {
-                    if (scaffoldState.drawerState.isOpen) {
-                        scope.launch { scaffoldState.drawerState.close() }
-                    } else {
-                        (context as Activity).finish()
-                    }
-                }
+                onItemSelected = appState::onItemSelected, // 'Function reference (::)' automatically put `it` inside the function
+                onBackPress = appState::onBackPressed
             )
         },
         drawerGesturesEnabled = scaffoldState.drawerState.isOpen
