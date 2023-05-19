@@ -6,7 +6,6 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
-import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -236,3 +235,124 @@ fun MySnapshotFlow() {
 
 // Diagram about Side Effect API connection:
 // - https://dicoding-web-img.sgp1.cdn.digitaloceanspaces.com/original/academy/dos:b45a6accea3c26a56baeb10cd177fd1c20221020174233.png
+
+// Type of State:
+// - UI Element State: Hoisted State for UI element (example: ScaffoldState)
+// - Screen/UI State: State to determine component that is displayed in screen (loading, error, success, etc)
+
+// Type of Logic:
+// - UI Behavior Logic / UI Logic: associated with UI display (button activation, snackbar, etc)
+// --- should be kept inside Composable
+// - Business Logic: associated with app's function (checkout, payment, etc)
+// --- should be kept on data layer (repository)
+
+// Types of State Management: possible locations as a Single Source of Truth (SSoT)
+// - Composable: to manage simple UI Element State
+// - State Holder: to manage complex UI Element state (Contains UI Element State & UI Logic)
+// - Architecture Component ViewModel: to access business logic, as well as UI State, or Screen State
+
+// notes on each SSoT:
+// - Composable can depend on multiple State Holder, or not at all
+// - State Holder can depend on ViewModel if need data related to Business Logic / Screen State
+// - ViewModel depend on Data Layer
+
+// State Holder as SSoT:
+// - State Holder is a class contains UI Element State & UI Logic that is interconnected
+// - State Holder are compoundable (could be combined by another State Holder)
+// - benefits in using State Holder:
+// --- points every State change to a single place
+// --- chance of out-of-sync reduced
+// --- could be used for same component on different place
+// --- reduce complexity of Composable
+// --- make State Hoisting easier
+/* example:
+class FormInputState(initialInput: String) {
+    var input by mutableStateOf(initialInput)
+}
+@Composable
+fun rememberFormInputState(input: String): FormInputState =
+    remember(input) {
+        FormInputState(input)
+    }
+
+@Composable
+fun MyForm() {
+    val input = rememberFormInputState("")
+    FormInput(
+        state = input
+    )
+}
+
+@Composable
+fun FormInput(
+    state: FormInputState = rememberFormInputState(""),
+) {
+    OutlinedTextField(
+        value = state.input,
+        onValueChange = { state.input = it },
+        label = { Text("Name") },
+        modifier = Modifier.padding(8.dp)
+    )
+}*/
+
+// ViewModel as SSoT:
+// - ViewModel is an Architecture Component that has 2 function (get data from Data Layer & prepare it to be displayed on screen)
+// - possible benefit using ViewModel:
+// --- retain data on configuration change (example: rotated)
+// --- integrated with another Jetpack Library (Hilt / Navigation Component)
+// --- saved on cache when on Navigation backstack and cleaned when exit
+// - note: Google recommend to use ViewModel to save state in 'page' level, not 'component' level
+/* example:
+data class ExampleUiState(
+    val dataToDisplayOnScreen: List<Example> = emptyList(),
+    val errorMessages: String = “”,
+    val loading: Boolean = false
+)
+
+class ExampleViewModel(
+    private val repository: MyRepository,
+    private val savedState: SavedStateHandle
+) : ViewModel() {
+
+    var uiState by mutableStateOf(ExampleUiState())
+        private set
+
+    val data: Flow<List<Data>> = repository.data
+
+    // Business logic
+    fun somethingRelatedToBusinessLogic() { /* ... */ }
+}
+
+@Composable
+fun ExampleScreen(viewModel: ExampleViewModel = viewModel()) {
+
+    val uiState = viewModel.uiState
+    val data = viewModel.data.collectAsState
+    /* ... */
+
+    ExampleReusableComponent(
+        someData = uiState.dataToDisplayOnScreen,
+        onDoSomething = { viewModel.somethingRelatedToBusinessLogic() }
+    )
+}
+
+@Composable
+fun ExampleReusableComponent(someData: Any, onDoSomething: () -> Unit) {
+    /* ... */
+    Button(onClick = onDoSomething) {
+        Text("Do something")
+    }
+}*/
+
+// note on ViewModel example:
+// - UI State could be class, enum, interface, etc that could show page's status (loading, success, error, etc)
+// - mutableStateOf used to read data change. Not use `remember` because it's outside Composable
+// - if the data is stream, use this extension to change it to State:
+// --- Flow.collectAsState(): convert flow to state
+// --- LiveData.observeAsState: convert LiveData to state (dependency: androidx.compose.runtime:runtime-livedata)
+// --- Observable.subscribeAsState: convert Observable object from RxJava2 / RxJava3 to State (dependency: androidx.compose.runtime:runtime-rxjava2 / -rxjava3)
+
+// things to be considered in using ViewModel for Composable:
+// - it has longer lifetime than Composable. avoid using State that holds Composition (ex: ScaffoldState) on ViewModel
+// - only use ViewModel on level: Screen Composable. Don't send ViewModel object to another composable, only send needed argument (so Recomposition is effective)
+// - separate Stateless & Stateful Composable that contains ViewMode. It made Preview easier
