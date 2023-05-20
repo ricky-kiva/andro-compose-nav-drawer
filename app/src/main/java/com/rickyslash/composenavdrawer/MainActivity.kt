@@ -185,7 +185,7 @@ fun ImageScreen(
     }
 }*/
 
-// - derivedStateOf(): change multiple State into a new State
+// - derivedStateOf(): change single or multiple State into a new State, without causing Recomposition
 // --- the value change won't cause Recomposition
 /* example by making 'Jump to Bottom' button:
 val jumpToBottomButtonEnabled by remember {
