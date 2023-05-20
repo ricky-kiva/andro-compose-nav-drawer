@@ -91,8 +91,8 @@ fun MyApp() {
     }
 }*/
 
-// - rememberCoroutineScope(): make Coroutine Scope to run Suspend Function outside Composable Function (whose aware of compose lifecycle)
-// --- unlike LaunchedEffect, it could be configured manually, means it also could be run using onClick() event
+// - rememberCoroutineScope(): make Coroutine Scope to run Suspend Function outside Composable's lifecycle
+// --- unlike LaunchedEffect, it could be configured/executed manually, means it also could be run using onClick() event
 /* example:
 @Composable
 fun MyRememberedCoroutineScope() {
